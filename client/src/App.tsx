@@ -1,64 +1,71 @@
-import { useState } from "react";
+import { Link, NavLink, Route, Routes } from "react-router-dom";
+import CreateInteraction from "./pages/CreateInteraction";
+import InteractionLog from "./pages/InteractionLog"
+import InteractionDetail from "./pages/InteractionDetail"
+import VaultBar from "./components/VaultBar"
+
+function NavItem(props: { to: string; children: React.ReactNode }) {
+  return (
+    <NavLink
+      to={props.to}
+      className={({ isActive }) =>
+        [
+          "rounded-md px-3 py-1 text-sm",
+          isActive ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100",
+        ].join(" ")
+      }
+    >
+      {props.children}
+    </NavLink>
+  );
+}
 
 export default function App() {
-  const [data, setData] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function checkHealth() {
-    setLoading(true);
-    setError(null);
-    setData(null);
-
-    try {
-      const res = await fetch("/api/health");
-      if (!res.ok) {
-        throw new Error(`Status ${res.status}`);
-      }
-
-      const json = await res.json();
-      setData(JSON.stringify(json));
-    } catch (err: any) {
-      setError(err.message || "Request failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
-    <div style={{ padding: 40, fontFamily: "sans-serif" }}>
-      <h1>Verity</h1>
+    <div className="min-h-screen bg-white">
+      <header className="border-b border-slate-200">
+        <div className="mx-auto flex max-w-3xl items-center justify-between p-4">
+          <Link to="/" className="text-base font-semibold">
+            Verity
+          </Link>
 
-      <button
-        onClick={checkHealth}
-        style={{
-          padding: "10px 20px",
-          fontSize: 16,
-          cursor: "pointer"
-        }}
-      >
-        Check API Health
-      </button>
+          <nav className="flex items-center gap-2">
+            <NavItem to="/">Log</NavItem>
+            <NavItem to="/interactions/new">New</NavItem>
+          </nav>
+        </div>
+      </header>
 
-      {loading && <p>Loading...</p>}
+      <main className="mx-auto max-w-3xl p-4">
+        <VaultBar/>
+        <Routes>
+          <Route
+            path="/"
+            element={<InteractionLog/>}
+             
+          />
+          <Route path="/interactions/:id" element={<InteractionDetail/>}/>
 
-      {data && (
-        <pre
-          style={{
-            marginTop: 20,
-            background: "#f4f4f4",
-            padding: 16
-          }}
-        >
-          {data}
-        </pre>
-      )}
+          <Route path="/interactions/new" element={<CreateInteraction />} />
 
-      {error && (
-        <p style={{ color: "red", marginTop: 20 }}>
-          Error: {error}
-        </p>
-      )}
+          <Route
+            path="*"
+            element={
+              <div className="rounded-xl border border-slate-200 p-6">
+                <div className="text-lg font-semibold">404</div>
+                <p className="mt-1 text-sm text-slate-600">
+                  That page doesn’t exist.
+                </p>
+                <div className="mt-4">
+                  <Link className="underline" to="/">
+                    Go home
+                  </Link>
+                </div>
+              </div>
+            }
+          />
+        </Routes>
+      </main>
     </div>
   );
 }

@@ -34,6 +34,7 @@ export async function mountViteDevMiddleware(httpServer: HttpServer, app: Expres
 
       // Let API routes pass through
       if (url.startsWith("/api")) return next();
+      if (url.startsWith("/trpc")) return next();
 
       const indexPath = path.resolve(clientRoot, "index.html");
       let html = await vite.ssrLoadModule("/index.html").then(() => null).catch(() => null); // keep vite "warm" (optional)

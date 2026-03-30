@@ -42,10 +42,11 @@ export function CreateIssueModal({ interactionId }: { interactionId: string }) {
     return () => { cancelled = true; };
   }, [openIssues, isSet, passphrase]);
 
-  // Client-side filter by typed text
+  // Client-side filter by typed text — only show successfully decrypted issues
   const filteredIssues = (openIssues ?? []).filter((issue) => {
+    const dec = decryptedCache.current.get(issue.id);
+    if (!dec || dec === "[wrong passphrase]") return false;
     if (!title) return true;
-    const dec = decryptedCache.current.get(issue.id) ?? "";
     return dec.toLowerCase().includes(title.toLowerCase());
   });
 

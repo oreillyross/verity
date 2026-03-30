@@ -27,7 +27,7 @@ export default function App() {
     <div className="min-h-screen bg-white">
       <header className="border-b border-slate-200">
         <div className="mx-auto flex max-w-3xl items-center justify-between p-4">
-          <Link to="/" className="text-base font-semibold">
+          <Link to="/" className="text-base font-semibold text-blue-900">
             Verity
           </Link>
 

@@ -101,7 +101,7 @@ export function CreateIssueModal({ interactionId }: { interactionId: string }) {
               value={title}
               onChange={(e) => { setTitle(e.target.value); setSelectedIssueId(null); }}
               placeholder="Issue title…"
-              className="w-full px-2 py-1 text-sm bg-black border border-zinc-700 rounded mb-2 outline-none"
+              className="w-full text-white px-2 py-1 text-sm bg-black border border-zinc-700 rounded mb-2 outline-none"
             />
 
             {filteredIssues.length > 0 && (
@@ -112,7 +112,7 @@ export function CreateIssueModal({ interactionId }: { interactionId: string }) {
                     <div
                       key={issue.id}
                       onClick={() => { setSelectedIssueId(issue.id); setTitle(dec ?? ""); }}
-                      className={`p-2 text-xs cursor-pointer hover:bg-zinc-800 ${selectedIssueId === issue.id ? "bg-zinc-800" : ""}`}
+                      className={`p-2 text-xs text-white cursor-pointer hover:bg-zinc-800 ${selectedIssueId === issue.id ? "bg-zinc-800" : ""}`}
                     >
                       {dec ?? "Decrypting…"}
                       <span className="ml-2 text-zinc-500">(open)</span>

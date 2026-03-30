@@ -1,7 +1,7 @@
 import { z } from "zod";
-import {eq, ilike} from "drizzle-orm"
+import {desc, eq, ilike} from "drizzle-orm"
 import { createTRPCRouter, publicProcedure } from "../core.js";
-import { issues } from "../../db/schema.js";
+import { issues, interactions } from "../../db/schema.js";
 
 export const issueRouter = createTRPCRouter({
   create: publicProcedure
@@ -34,6 +34,47 @@ export const issueRouter = createTRPCRouter({
         resolvedAt: new Date(),
       })
       .where(eq(issues.id, input.issueId));
+  }),
+  list: publicProcedure
+  .input(
+    z.object({
+      status: z.enum(["open", "closed", "all"]).default("all"),
+    }),
+  )
+  .query(async ({ ctx, input }) => {
+    const rows = await ctx.db
+      .select({
+        id: issues.id,
+        title: issues.title,
+        status: issues.status,
+        createdAt: issues.createdAt,
+        resolvedAt: issues.resolvedAt,
+      })
+      .from(issues)
+      .where(
+        input.status === "all" ? undefined : eq(issues.status, input.status),
+      )
+      .orderBy(desc(issues.createdAt));
+
+    return rows;
+  }),
+  get: publicProcedure
+  .input(z.object({ id: z.string().uuid() }))
+  .query(async ({ ctx, input }) => {
+    const [issue] = await ctx.db
+      .select()
+      .from(issues)
+      .where(eq(issues.id, input.id))
+      .limit(1);
+
+    if (!issue) throw new Error("Issue not found");
+
+    const linkedInteractions = await ctx.db
+      .select({ id: interactions.id })
+      .from(interactions)
+      .where(eq(interactions.issueId, input.id));
+
+    return { ...issue, interactions: linkedInteractions };
   }),
   search: publicProcedure
   .input(

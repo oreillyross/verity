@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { trpc } from "../trpc";
+import {data, useNavigate} from "react-router-dom"
 
 export function CreateIssueModal({
   interactionId,
 }: {
   interactionId: string;
 }) {
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
@@ -13,11 +15,12 @@ export function CreateIssueModal({
   const utils = trpc.useUtils();
 
   const createIssue = trpc.interaction.createFromInteraction.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       utils.interaction.invalidate();
       setOpen(false);
       setTitle("");
       setSelectedIssueId(null);
+      navigate(`/issues/${data.id}`)
     },
   });
 
@@ -26,7 +29,7 @@ export function CreateIssueModal({
       utils.interaction.invalidate();
       setOpen(false);
       setTitle("");
-      setSelectedIssueId(null);
+      navigate(`/issues/${selectedIssueId}`)
     },
   });
 
@@ -62,7 +65,7 @@ export function CreateIssueModal({
                 setSelectedIssueId(null);
               }}
               placeholder="Start typing issue..."
-              className="w-full px-2 py-1 text-sm bg-black border border-zinc-700 rounded mb-2 outline-none"
+              className="w-full px-2 py-1 text-sm text-white bg-black border border-zinc-700 rounded mb-2 outline-none"
             />
 
             {/* Results */}

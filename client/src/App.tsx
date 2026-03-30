@@ -3,6 +3,8 @@ import CreateInteraction from "./pages/CreateInteraction";
 import InteractionLog from "./pages/InteractionLog"
 import InteractionDetail from "./pages/InteractionDetail"
 import VaultBar from "./components/VaultBar"
+import IssueDetail from "./pages/IssueDetail"
+import IssueLog from "./pages/IssueLog"
 
 function NavItem(props: { to: string; children: React.ReactNode }) {
   return (
@@ -32,6 +34,7 @@ export default function App() {
           <nav className="flex items-center gap-2">
             <NavItem to="/">Log</NavItem>
             <NavItem to="/interactions/new">New</NavItem>
+            <NavItem to="/issues">Issues</NavItem>
           </nav>
         </div>
       </header>
@@ -45,7 +48,8 @@ export default function App() {
              
           />
           <Route path="/interactions/:id" element={<InteractionDetail/>}/>
-
+          <Route path="/issues" element={<IssueLog />} />
+          <Route path="/issues/:id" element={<IssueDetail />} />
           <Route path="/interactions/new" element={<CreateInteraction />} />
 
           <Route

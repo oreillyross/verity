@@ -91,6 +91,13 @@ export default function InteractionLog() {
     });
   }, [allItems]);
 
+  const visibleRows = isSet
+  ? rows.filter((r) => {
+      const dec = decryptedCache.current.get(r.id);
+      return !dec || !dec.failed; // keep: pending decryption OR successfully decrypted
+    })
+  : [];
+
   async function ensureDecrypted(
     id: string,
     titleCiphertext: string,
@@ -161,17 +168,17 @@ export default function InteractionLog() {
           </div>
 
           <div className="text-right text-xs text-slate-500">
-            {rows.length} item{rows.length === 1 ? "" : "s"}
+            {visibleRows.length} item{visibleRows.length === 1 ? "" : "s"}
           </div>
         </div>
       </div>
 
       <div className="rounded-xl border border-slate-200">
-        {rows.length === 0 && !list.isLoading ? (
+        {visibleRows.length === 0 && !list.isLoading ? (
           <div className="p-6 text-sm text-slate-600">No interactions yet.</div>
         ) : (
           <ul className="divide-y divide-slate-200">
-            {rows.map((r) => {
+            {visibleRows.map((r) => {
               const dec = decryptedCache.current.get(r.id);
               const occurredAt = r.occurredAt as Date;
 

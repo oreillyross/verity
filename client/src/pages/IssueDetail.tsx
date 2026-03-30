@@ -1,10 +1,43 @@
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { trpc } from "../trpc";
+import { decryptStringV1 } from "../crypto/verityCrypto";
+import { usePassphrase } from "../state/passphrase";
+import { AddInteractionForm } from "../components/AddInteractionForm";
 
 export default function IssueDetail() {
   const { id } = useParams();
+  const { passphrase, isSet } = usePassphrase();
 
   const q = trpc.issues.get.useQuery({ id: id ?? "" }, { enabled: !!id });
+
+  const [decrypted, setDecrypted] = useState<{
+    title: string;
+    failed?: boolean;
+  } | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  useEffect(() => {
+    setDecrypted(null);
+    if (!q.data || !isSet || !passphrase) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const title = await decryptStringV1({
+          envelopeB64u: q.data.titleCiphertext,
+          passphrase,
+        });
+        if (!cancelled) setDecrypted({ title });
+      } catch {
+        if (!cancelled) setDecrypted({ title: "", failed: true });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [q.data, isSet, passphrase]);
 
   if (q.isLoading) {
     return (
@@ -29,12 +62,18 @@ export default function IssueDetail() {
   }
 
   const issue = q.data;
+  const title =
+    isSet && decrypted && !decrypted.failed
+      ? decrypted.title
+      : isSet
+        ? "Decrypting…"
+        : "Locked";
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <Link to="/" className="text-sm text-slate-700 hover:underline">
-          ← Back
+        <Link to="/issues" className="text-sm text-slate-700 hover:underline">
+          ← Issues
         </Link>
         <span
           className={[
@@ -49,8 +88,17 @@ export default function IssueDetail() {
       </div>
 
       <div className="rounded-xl border border-slate-200 p-5">
-        <div className="text-xl font-semibold text-slate-900">{issue.title}</div>
-        <div className="mt-1 font-mono text-xs text-slate-400">id {issue.id}</div>
+        <div className="text-xl font-semibold text-slate-900">
+          {title || <span className="text-slate-400">(no title)</span>}
+        </div>
+        {decrypted?.failed && isSet && (
+          <div className="mt-1 text-xs text-red-600">
+            Decrypt failed — wrong passphrase?
+          </div>
+        )}
+        <div className="mt-1 font-mono text-xs text-slate-400">
+          id {issue.id}
+        </div>
 
         {issue.interactions.length > 0 && (
           <div className="mt-6">
@@ -59,8 +107,13 @@ export default function IssueDetail() {
             </div>
             <ul className="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200">
               {issue.interactions.map((interaction) => (
-                <li key={interaction.id} className="flex items-center justify-between p-3">
-                  <span className="font-mono text-xs text-slate-500">{interaction.id}</span>
+                <li
+                  key={interaction.id}
+                  className="flex items-center justify-between p-3"
+                >
+                  <span className="font-mono text-xs text-slate-500">
+                    {interaction.id}
+                  </span>
                   <Link
                     to={`/interactions/${interaction.id}`}
                     className="text-xs text-slate-700 hover:underline"
@@ -72,7 +125,35 @@ export default function IssueDetail() {
             </ul>
           </div>
         )}
+        {/* Add interaction */}
+        <div className="mt-6 border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            onClick={() => setShowAddForm((v) => !v)}
+            disabled={!isSet}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            title={!isSet ? "Unlock vault to add interaction" : undefined}
+          >
+            {showAddForm ? "Cancel" : "+ Add interaction"}
+          </button>
+
+          {showAddForm && (
+            <AddInteractionForm
+              issueId={issue.id}
+              onSuccess={() => {
+                setShowAddForm(false);
+                q.refetch();
+              }}
+            />
+          )}
+        </div>
       </div>
+
+      {!isSet && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          Set your passphrase in the Vault bar to decrypt this issue.
+        </div>
+      )}
     </div>
   );
 }

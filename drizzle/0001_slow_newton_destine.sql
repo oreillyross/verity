@@ -1,6 +1,6 @@
 CREATE TABLE "issues" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"title" text NOT NULL,
+	"titleCiphertext" text NOT NULL,
 	"status" text DEFAULT 'open' NOT NULL,
 	"resolution" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,

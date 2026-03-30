@@ -1,26 +1,69 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { trpc } from "../trpc";
-import {data, useNavigate} from "react-router-dom"
+import { encryptStringV1, decryptStringV1 } from "../crypto/verityCrypto";
+import { usePassphrase } from "../state/passphrase";
 
-export function CreateIssueModal({
-  interactionId,
-}: {
-  interactionId: string;
-}) {
-  const navigate = useNavigate()
+export function CreateIssueModal({ interactionId }: { interactionId: string }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
 
+  const navigate = useNavigate();
+  const { passphrase, isSet } = usePassphrase();
   const utils = trpc.useUtils();
+  const decryptedCache = useRef(new Map<string, string>());
+
+  const { data: openIssues } = trpc.issues.list.useQuery(
+    { status: "open" },
+    { enabled: open },
+  );
+
+  // Decrypt issue titles for the link list
+  useEffect(() => {
+    if (!openIssues || !isSet || !passphrase) return;
+    let cancelled = false;
+
+    (async () => {
+      for (const issue of openIssues) {
+        if (cancelled) return;
+        if (decryptedCache.current.has(issue.id)) continue;
+        try {
+          const t = await decryptStringV1({ envelopeB64u: issue.titleCiphertext, passphrase });
+          decryptedCache.current.set(issue.id, t);
+        } catch {
+          decryptedCache.current.set(issue.id, "[wrong passphrase]");
+        }
+        if (!cancelled) setTick((n) => n + 1);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [openIssues, isSet, passphrase]);
+
+  // Client-side filter by typed text
+  const filteredIssues = (openIssues ?? []).filter((issue) => {
+    if (!title) return true;
+    const dec = decryptedCache.current.get(issue.id) ?? "";
+    return dec.toLowerCase().includes(title.toLowerCase());
+  });
+
+  async function handleCreate() {
+    if (!isSet || !passphrase) return;
+    const titleCiphertext = await encryptStringV1({
+      plaintext: title.trim() || "Untitled Issue",
+      passphrase,
+    });
+    createIssue.mutate({ interactionId, titleCiphertext });
+  }
 
   const createIssue = trpc.interaction.createFromInteraction.useMutation({
     onSuccess: (data) => {
       utils.interaction.invalidate();
       setOpen(false);
       setTitle("");
-      setSelectedIssueId(null);
-      navigate(`/issues/${data.id}`)
+      navigate(`/issues/${data.id}`);
     },
   });
 
@@ -29,20 +72,12 @@ export function CreateIssueModal({
       utils.interaction.invalidate();
       setOpen(false);
       setTitle("");
-      navigate(`/issues/${selectedIssueId}`)
+      navigate(`/issues/${selectedIssueId}`);
     },
   });
 
-  const { data: results, isFetching } = trpc.issues.search.useQuery(
-    { query: title },
-    {
-      enabled: title.length >= 3,
-    },
-  );
-
   return (
     <>
-      {/* Trigger */}
       <button
         onClick={() => setOpen(true)}
         className="mt-4 px-3 py-1 text-sm bg-yellow-500 text-black rounded hover:bg-yellow-400"
@@ -50,56 +85,43 @@ export function CreateIssueModal({
         Create Issue
       </button>
 
-      {/* Modal */}
       {open && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-zinc-900 p-4 rounded w-full max-w-sm border border-zinc-700">
             <h2 className="text-sm text-zinc-400 mb-2">Create or Link Issue</h2>
 
-            {/* Input */}
-            <input
-              autoFocus
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value);
-                setSelectedIssueId(null);
-              }}
-              placeholder="Start typing issue..."
-              className="w-full px-2 py-1 text-sm text-white bg-black border border-zinc-700 rounded mb-2 outline-none"
-            />
-
-            {/* Results */}
-            {title.length >= 3 && (
-              <div className="mb-3 max-h-40 overflow-y-auto border border-zinc-700 rounded">
-                {isFetching && (
-                  <div className="text-xs text-zinc-500 p-2">Searching...</div>
-                )}
-
-                {results?.map((issue) => (
-                  <div
-                    key={issue.id}
-                    onClick={() => {
-                      setSelectedIssueId(issue.id);
-                      setTitle(issue.title);
-                    }}
-                    className={`p-2 text-xs cursor-pointer hover:bg-zinc-800 ${
-                      selectedIssueId === issue.id ? "bg-zinc-800" : ""
-                    }`}
-                  >
-                    {issue.title}
-                    <span className="ml-2 text-zinc-500">({issue.status})</span>
-                  </div>
-                ))}
-
-                {results?.length === 0 && (
-                  <div className="text-xs text-zinc-500 p-2">
-                    No matches — create new
-                  </div>
-                )}
+            {!isSet && (
+              <div className="mb-2 text-xs text-amber-400">
+                Unlock your vault to create or link issues.
               </div>
             )}
 
-            {/* Actions */}
+            <input
+              autoFocus
+              value={title}
+              onChange={(e) => { setTitle(e.target.value); setSelectedIssueId(null); }}
+              placeholder="Issue title…"
+              className="w-full px-2 py-1 text-sm bg-black border border-zinc-700 rounded mb-2 outline-none"
+            />
+
+            {filteredIssues.length > 0 && (
+              <div className="mb-3 max-h-40 overflow-y-auto border border-zinc-700 rounded">
+                {filteredIssues.map((issue) => {
+                  const dec = decryptedCache.current.get(issue.id);
+                  return (
+                    <div
+                      key={issue.id}
+                      onClick={() => { setSelectedIssueId(issue.id); setTitle(dec ?? ""); }}
+                      className={`p-2 text-xs cursor-pointer hover:bg-zinc-800 ${selectedIssueId === issue.id ? "bg-zinc-800" : ""}`}
+                    >
+                      {dec ?? "Decrypting…"}
+                      <span className="ml-2 text-zinc-500">(open)</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setOpen(false)}
@@ -110,12 +132,7 @@ export function CreateIssueModal({
 
               {selectedIssueId ? (
                 <button
-                  onClick={() =>
-                    linkIssue.mutate({
-                      interactionId,
-                      issueId: selectedIssueId,
-                    })
-                  }
+                  onClick={() => linkIssue.mutate({ interactionId, issueId: selectedIssueId })}
                   disabled={linkIssue.isPending}
                   className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-400"
                 >
@@ -123,14 +140,9 @@ export function CreateIssueModal({
                 </button>
               ) : (
                 <button
-                  onClick={() =>
-                    createIssue.mutate({
-                      interactionId,
-                      title: title || undefined,
-                    })
-                  }
-                  disabled={createIssue.isPending}
-                  className="px-3 py-1 text-xs bg-yellow-500 text-black rounded hover:bg-yellow-400"
+                  onClick={handleCreate}
+                  disabled={createIssue.isPending || !isSet}
+                  className="px-3 py-1 text-xs bg-yellow-500 text-black rounded hover:bg-yellow-400 disabled:opacity-50"
                 >
                   {createIssue.isPending ? "Creating..." : "Create"}
                 </button>

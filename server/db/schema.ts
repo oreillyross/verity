@@ -121,7 +121,7 @@ export const interactionLinks = pgTable(
 export const issues = pgTable("issues", {
   id: uuid("id").defaultRandom().primaryKey(),
 
-  title: text("title").notNull(),
+  titleCiphertext: text("title_ciphertext").notNull(),
 
   status: text("status", { enum: ["open", "closed"] })
     .notNull()

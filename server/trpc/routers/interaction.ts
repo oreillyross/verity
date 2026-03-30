@@ -83,37 +83,27 @@ export const interactionRouter = createTRPCRouter({
       return { ok: true, ...result };
     }),
   createFromInteraction: publicProcedure
-    .input(
-      z.object({
-        interactionId: z.string().uuid(),
-        title: z.string().optional(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      return await ctx.db.transaction(async (tx) => {
-        // 1. get interaction (optional but nice)
-        const interaction = await tx.query.interactions.findFirst({
-          where: eq(interactions.id, input.interactionId),
-        });
-
-        // 2. create issue
-        const [issue] = await tx
-          .insert(issues)
-          .values({
-            title:
-              input.title ?? interaction?.titleCiphertext ?? "Untitled Issue",
-          })
-          .returning();
-
-        // 3. link interaction → issue
-        await tx
-          .update(interactions)
-          .set({ issueId: issue.id })
-          .where(eq(interactions.id, input.interactionId));
-
-        return issue;
-      });
+  .input(
+  z.object({
+      interactionId: z.string().uuid(),
+      titleCiphertext: z.string().min(1),
     }),
+  )
+  .mutation(async ({ ctx, input }) => {
+    return await ctx.db.transaction(async (tx) => {
+      const [issue] = await tx
+        .insert(issues)
+        .values({ titleCiphertext: input.titleCiphertext })
+        .returning();
+
+      await tx
+        .update(interactions)
+        .set({ issueId: issue.id })
+        .where(eq(interactions.id, input.interactionId));
+
+      return issue;
+    });
+  }),
   linkInteraction: publicProcedure
     .input(
       z.object({

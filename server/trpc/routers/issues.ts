@@ -1,97 +1,63 @@
 import { z } from "zod";
-import {desc, eq, ilike} from "drizzle-orm"
+import { desc, eq } from "drizzle-orm";
 import { createTRPCRouter, publicProcedure } from "../core.js";
 import { issues, interactions } from "../../db/schema.js";
 
 export const issueRouter = createTRPCRouter({
   create: publicProcedure
-    .input(
-      z.object({
-        title: z.string().min(1),
-      }),
-    )
+    .input(z.object({ titleCiphertext: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       const [issue] = await ctx.db
         .insert(issues)
-        .values({
-          title: input.title,
-        })
+        .values({ titleCiphertext: input.titleCiphertext })
         .returning();
-
       return issue;
     }),
+
   close: publicProcedure
-  .input(z.object({
-    issueId: z.string().uuid(),
-    resolution: z.string().min(1),
-  }))
-  .mutation(async ({ ctx, input }) => {
-    await ctx.db
-      .update(issues)
-      .set({
-        status: "closed",
-        resolution: input.resolution,
-        resolvedAt: new Date(),
-      })
-      .where(eq(issues.id, input.issueId));
-  }),
-  list: publicProcedure
-  .input(
-    z.object({
-      status: z.enum(["open", "closed", "all"]).default("all"),
+    .input(z.object({
+      issueId: z.string().uuid(),
+      resolution: z.string().min(1),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .update(issues)
+        .set({ status: "closed", resolution: input.resolution, resolvedAt: new Date() })
+        .where(eq(issues.id, input.issueId));
     }),
-  )
-  .query(async ({ ctx, input }) => {
-    const rows = await ctx.db
-      .select({
-        id: issues.id,
-        title: issues.title,
-        status: issues.status,
-        createdAt: issues.createdAt,
-        resolvedAt: issues.resolvedAt,
-      })
-      .from(issues)
-      .where(
-        input.status === "all" ? undefined : eq(issues.status, input.status),
-      )
-      .orderBy(desc(issues.createdAt));
 
-    return rows;
-  }),
+  list: publicProcedure
+    .input(z.object({ status: z.enum(["open", "closed", "all"]).default("all") }))
+    .query(async ({ ctx, input }) => {
+      return await ctx.db
+        .select({
+          id: issues.id,
+          titleCiphertext: issues.titleCiphertext,
+          status: issues.status,
+          createdAt: issues.createdAt,
+          resolvedAt: issues.resolvedAt,
+        })
+        .from(issues)
+        .where(input.status === "all" ? undefined : eq(issues.status, input.status))
+        .orderBy(desc(issues.createdAt));
+    }),
+
   get: publicProcedure
-  .input(z.object({ id: z.string().uuid() }))
-  .query(async ({ ctx, input }) => {
-    const [issue] = await ctx.db
-      .select()
-      .from(issues)
-      .where(eq(issues.id, input.id))
-      .limit(1);
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const [issue] = await ctx.db
+        .select()
+        .from(issues)
+        .where(eq(issues.id, input.id))
+        .limit(1);
 
-    if (!issue) throw new Error("Issue not found");
+      if (!issue) throw new Error("Issue not found");
 
-    const linkedInteractions = await ctx.db
-      .select({ id: interactions.id })
-      .from(interactions)
-      .where(eq(interactions.issueId, input.id));
+      const linkedInteractions = await ctx.db
+        .select({ id: interactions.id })
+        .from(interactions)
+        .where(eq(interactions.issueId, input.id));
 
-    return { ...issue, interactions: linkedInteractions };
-  }),
-  search: publicProcedure
-  .input(
-    z.object({
-      query: z.string().min(3),
-    })
-  )
-  .query(async ({ ctx, input }) => {
-    return await ctx.db
-      .select({
-        id: issues.id,
-        title: issues.title,
-        status: issues.status,
-      })
-      .from(issues)
-      .where(ilike(issues.title, `%${input.query}%`))
-      .limit(5);
-  }),
-  
+      return { ...issue, interactions: linkedInteractions };
+    }),
 });

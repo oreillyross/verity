@@ -54,7 +54,7 @@ export const issueRouter = createTRPCRouter({
       if (!issue) throw new Error("Issue not found");
 
       const linkedInteractions = await ctx.db
-        .select({ id: interactions.id, titleCiphertext: interactions.titleCiphertext })
+        .select({ id: interactions.id, titleCiphertext: interactions.titleCiphertext, createdAt: interactions.createdAt })
         .from(interactions)
         .where(eq(interactions.issueId, input.id));
 

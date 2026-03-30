@@ -119,7 +119,10 @@ export default function IssueDetail() {
             Decrypt failed — wrong passphrase?
           </div>
         )}
-        <div className="mt-1 font-mono text-xs text-slate-400">
+        <div className="mt-1 text-xs text-slate-400">
+          {new Date(issue.createdAt).toLocaleString()}
+        </div>
+        <div className="mt-0.5 font-mono text-xs text-slate-400">
           id {issue.id}
         </div>
 
@@ -134,7 +137,10 @@ export default function IssueDetail() {
                   key={interaction.id}
                   className="flex items-center justify-between p-3"
                 >
-                  <span className="text-sm text-slate-700">
+                  <span className="text-xs text-slate-400 shrink-0 mr-3">
+                    {new Date(interaction.createdAt).toLocaleString()}
+                  </span>
+                  <span className="text-sm text-slate-700 flex-1">
                     {decryptedInteractions.get(interaction.id) ?? "Decrypting…"}
                   </span>
                   <Link

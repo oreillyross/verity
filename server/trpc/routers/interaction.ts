@@ -6,6 +6,7 @@ import {
   interactionTags,
   interactionLinks,
   tags,
+  issues,
 } from "../../db/schema.js";
 
 function normalizeTagName(raw: string) {
@@ -81,7 +82,51 @@ export const interactionRouter = createTRPCRouter({
 
       return { ok: true, ...result };
     }),
+  createFromInteraction: publicProcedure
+    .input(
+      z.object({
+        interactionId: z.string().uuid(),
+        title: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return await ctx.db.transaction(async (tx) => {
+        // 1. get interaction (optional but nice)
+        const interaction = await tx.query.interactions.findFirst({
+          where: eq(interactions.id, input.interactionId),
+        });
 
+        // 2. create issue
+        const [issue] = await tx
+          .insert(issues)
+          .values({
+            title:
+              input.title ?? interaction?.titleCiphertext ?? "Untitled Issue",
+          })
+          .returning();
+
+        // 3. link interaction → issue
+        await tx
+          .update(interactions)
+          .set({ issueId: issue.id })
+          .where(eq(interactions.id, input.interactionId));
+
+        return issue;
+      });
+    }),
+  linkInteraction: publicProcedure
+    .input(
+      z.object({
+        interactionId: z.string().uuid(),
+        issueId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .update(interactions)
+        .set({ issueId: input.issueId })
+        .where(eq(interactions.id, input.interactionId));
+    }),
   list: publicProcedure
     .input(
       z.object({

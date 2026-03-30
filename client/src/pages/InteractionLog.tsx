@@ -3,6 +3,7 @@ import { trpc } from "../trpc";
 import { decryptStringV1 } from "../crypto/verityCrypto";
 import { usePassphrase } from "../state/passphrase";
 import { Link } from "react-router-dom";
+import {keepPreviousData} from "@tanstack/react-query"
 
 type Cursor = { occurredAt: string; id: string } | null;
 
@@ -24,8 +25,14 @@ export default function InteractionLog() {
   const [cursor, setCursor] = useState<Cursor>(null);
 
   const list = trpc.interaction.list.useQuery(
-    { limit: 20, cursor: cursor ?? undefined },
-    { keepPreviousData: true, enabled: true },
+    {
+      limit: 20,
+      ...(cursor ? { cursor } : {}),
+    },
+    {
+      placeholderData: keepPreviousData,
+      enabled: true,
+    }
   );
 
   // We’ll accumulate pages locally (simple + explicit)

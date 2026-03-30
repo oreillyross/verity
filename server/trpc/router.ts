@@ -3,6 +3,7 @@ import { createTRPCRouter, publicProcedure } from "./core";
 import { interactionRouter } from "./routers/interaction.js";
 import { linkRouter } from "./routers/link.js";
 import { tagRouter } from "./routers/tag.js";
+import {issueRouter} from "./routers/issues"
 
 export const appRouter = createTRPCRouter({
   health: publicProcedure.query(() => {
@@ -11,6 +12,7 @@ export const appRouter = createTRPCRouter({
 interaction: interactionRouter,
   tag: tagRouter,
   link: linkRouter,
+  issues: issueRouter,
   hello: publicProcedure
     .input(z.object({ name: z.string().min(1) }))
     .query(({ input }) => {

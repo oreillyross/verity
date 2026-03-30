@@ -1,5 +1,5 @@
 import { z } from "zod";
-import {eq} from "drizzle-orm"
+import {eq, ilike} from "drizzle-orm"
 import { createTRPCRouter, publicProcedure } from "../core.js";
 import { issues } from "../../db/schema.js";
 
@@ -35,4 +35,22 @@ export const issueRouter = createTRPCRouter({
       })
       .where(eq(issues.id, input.issueId));
   }),
+  search: publicProcedure
+  .input(
+    z.object({
+      query: z.string().min(3),
+    })
+  )
+  .query(async ({ ctx, input }) => {
+    return await ctx.db
+      .select({
+        id: issues.id,
+        title: issues.title,
+        status: issues.status,
+      })
+      .from(issues)
+      .where(ilike(issues.title, `%${input.query}%`))
+      .limit(5);
+  }),
+  
 });

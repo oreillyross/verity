@@ -3,6 +3,7 @@ import { trpc } from "../trpc";
 import { decryptStringV1, encryptStringV1 } from "../crypto/verityCrypto";
 import { usePassphrase } from "../state/passphrase";
 import { useEffect, useMemo, useState, useRef } from "react";
+import { CreateIssueModal } from "../components/CreateIssueModal";
 
 function fmt(dt: Date) {
   return dt.toLocaleString(undefined, {
@@ -59,7 +60,7 @@ export default function InteractionDetail() {
     { enabled: !!id },
   );
 
-  const [threadTick, setThreadTick] = useState(0);
+  const [_, setThreadTick] = useState(0);
   const threadTitleCache = useRef(
     new Map<string, { title: string; failed?: boolean }>(),
   );
@@ -198,14 +199,6 @@ export default function InteractionDetail() {
     () => (row ? new Date(row.occurredAt) : null),
     [row],
   );
-  const createdAt = useMemo(
-    () => (row ? new Date(row.createdAt) : null),
-    [row],
-  );
-  const updatedAt = useMemo(
-    () => (row ? new Date(row.updatedAt) : null),
-    [row],
-  );
 
   if (q.isLoading) {
     return (
@@ -251,6 +244,7 @@ export default function InteractionDetail() {
         <Link to="/" className="text-sm text-slate-700 hover:underline">
           ← Back
         </Link>
+        <CreateIssueModal interactionId={row.id} />
 
         <div className="font-mono text-xs text-slate-400">id {row.id}</div>
         <button

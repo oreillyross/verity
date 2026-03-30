@@ -15,6 +15,7 @@ export default function IssueDetail() {
     title: string;
     failed?: boolean;
   } | null>(null);
+  const [decryptedInteractions, setDecryptedInteractions] = useState<Map<string, string>>(new Map());
   const [showAddForm, setShowAddForm] = useState(false);
 
   useEffect(() => {
@@ -38,6 +39,28 @@ export default function IssueDetail() {
       cancelled = true;
     };
   }, [q.data, isSet, passphrase]);
+
+  useEffect(() => {
+    setDecryptedInteractions(new Map());
+    if (!q.data?.interactions || !isSet || !passphrase) return;
+    let cancelled = false;
+
+    (async () => {
+      const map = new Map<string, string>();
+      for (const interaction of q.data.interactions) {
+        if (cancelled) return;
+        try {
+          const t = await decryptStringV1({ envelopeB64u: interaction.titleCiphertext, passphrase });
+          map.set(interaction.id, t);
+        } catch {
+          map.set(interaction.id, "[decrypt failed]");
+        }
+      }
+      if (!cancelled) setDecryptedInteractions(new Map(map));
+    })();
+
+    return () => { cancelled = true; };
+  }, [q.data?.interactions, isSet, passphrase]);
 
   if (q.isLoading) {
     return (
@@ -111,8 +134,8 @@ export default function IssueDetail() {
                   key={interaction.id}
                   className="flex items-center justify-between p-3"
                 >
-                  <span className="font-mono text-xs text-slate-500">
-                    {interaction.id}
+                  <span className="text-sm text-slate-700">
+                    {decryptedInteractions.get(interaction.id) ?? "Decrypting…"}
                   </span>
                   <Link
                     to={`/interactions/${interaction.id}`}
